@@ -25,14 +25,17 @@ func (s *tcpServer) Handle(conn net.Conn) {
 	}
 	v := string(buf)
 	log.Printf("client version:%v\n", v)
-
+	var p protocol.Protocol
 	switch v {
 	case protocol.MagicV1:
-
+		p = &protocolV1{server: s.server}
 	default:
 		conn.Close()
 		log.Printf("client(%s) error version '%s'\n", conn.RemoteAddr(), v)
 	}
+	// 创建 client
+	client := p.NewClient(conn)
+	log.Printf("create client id:%v\n", client.ID())
 
 	// 读取消息内容
 

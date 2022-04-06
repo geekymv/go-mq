@@ -6,6 +6,9 @@ import (
 )
 
 type MQServer struct {
+	// 客户端ID递增序列
+	ClientIDSequence int64
+	// 服务端启动时间
 	startTime time.Time
 	tcpServer *tcpServer
 
