@@ -4,12 +4,15 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 
 	"github.com/geekymv/go-mq/internal/protocol"
 )
 
 type tcpServer struct {
 	server *MQServer
+	// 存储连接
+	conns sync.Map
 }
 
 func (s *tcpServer) Handle(conn net.Conn) {
@@ -25,18 +28,21 @@ func (s *tcpServer) Handle(conn net.Conn) {
 	}
 	v := string(buf)
 	log.Printf("client version:%v\n", v)
-	var p protocol.Protocol
+	var prot protocol.Protocol
 	switch v {
 	case protocol.MagicV1:
-		p = &protocolV1{server: s.server}
+		prot = &protocolV1{server: s.server}
 	default:
 		conn.Close()
 		log.Printf("client(%s) error version '%s'\n", conn.RemoteAddr(), v)
+		return
 	}
 	// 创建 client
-	client := p.NewClient(conn)
-	log.Printf("create client id:%v\n", client.ID())
+	client := prot.NewClient(conn)
+	s.conns.Store(conn.RemoteAddr(), client)
+	log.Printf("create client id:%v\n", client.GetID())
 
 	// 读取消息内容
+	prot.IOLoop(client)
 
 }
