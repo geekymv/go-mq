@@ -16,6 +16,8 @@ type clientV1 struct {
 
 	Reader *bufio.Reader
 	Writer *bufio.Writer
+
+	Channel *Channel
 }
 
 func newClientV1(id int64, conn net.Conn, server *MQServer) protocol.Client {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -43,4 +44,29 @@ func (p *protocolV1) IOLoop(c protocol.Client) error {
 	}
 
 	return err
+}
+
+/*
+SUB <topic_name> <channel_name>
+*/
+func (p *protocolV1) SUB(client *clientV1, params [][]byte) ([]byte, error) {
+	if len(params) < 3 {
+		return nil, errors.New("params len invalid")
+	}
+	topicName := params[1]
+	channelName := params[2]
+
+	// 获取 topic 和 channel
+	t := p.server.GetTopic(string(topicName))
+	channel := t.GetChannel(string(channelName))
+
+	// 将 client 添加到 channel
+	if err := channel.AddClient(client.ID, client); err != nil {
+		return nil, err
+	}
+
+	// 将 channel 和 client 关联
+	client.Channel = channel
+
+	return []byte("OK"), nil
 }

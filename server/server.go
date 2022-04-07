@@ -13,12 +13,15 @@ type MQServer struct {
 	tcpServer *tcpServer
 
 	tcpListener net.Listener
+
+	topicMap map[string]*Topic
 }
 
 func New() (*MQServer, error) {
 	var err error
 	s := &MQServer{
 		startTime: time.Now(),
+		topicMap:  make(map[string]*Topic),
 	}
 
 	s.tcpServer = &tcpServer{server: s}
@@ -30,6 +33,20 @@ func New() (*MQServer, error) {
 func (s *MQServer) Main() error {
 	var err error
 	err = TCPServer(s.tcpListener, s.tcpServer)
-
 	return err
+}
+
+func (s *MQServer) GetTopic(topicName string) *Topic {
+
+	t, ok := s.topicMap[topicName]
+	if ok {
+		return t
+	}
+
+	t = NewTopic(topicName, s)
+	s.topicMap[topicName] = t
+
+	t.Start()
+
+	return t
 }
