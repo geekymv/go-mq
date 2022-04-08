@@ -49,7 +49,7 @@ func (p *protocolV1) IOLoop(c protocol.Client) error {
 }
 
 /*
-PUB <topic_name>
+PUB <topic_name>\n
 [ 4-byte size in bytes ][ N-byte binary data ]
 */
 func (p *protocolV1) PUB(client *clientV1, params [][]byte) ([]byte, error) {
@@ -78,7 +78,7 @@ func (p *protocolV1) PUB(client *clientV1, params [][]byte) ([]byte, error) {
 }
 
 /*
-SUB <topic_name> <channel_name>
+SUB <topic_name> <channel_name>\n
 */
 func (p *protocolV1) SUB(client *clientV1, params [][]byte) ([]byte, error) {
 	if len(params) < 3 {
