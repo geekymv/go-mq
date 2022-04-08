@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"log"
 )
 
@@ -61,7 +60,7 @@ func (t *Topic) GenerateID() MessageID {
 	}
 	var buf = make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, nextID)
-	hex.Encode(msgId[:], buf)
+	copy(msgId[:], buf)
 
 	return msgId
 }

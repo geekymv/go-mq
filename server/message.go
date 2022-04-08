@@ -3,7 +3,7 @@ package server
 import "time"
 
 const (
-	MsgIDLength       = 16
+	MsgIDLength       = 8
 	minValidMsgLength = MsgIDLength + 8 + 2
 )
 
