@@ -8,6 +8,7 @@ import (
 type MQServer struct {
 	// 客户端ID递增序列
 	ClientIDSequence int64
+	NodeID           uint16
 	// 服务端启动时间
 	startTime time.Time
 	tcpServer *tcpServer
@@ -24,7 +25,10 @@ func New() (*MQServer, error) {
 		topicMap:  make(map[string]*Topic),
 	}
 
+	// TODO set NodeID
+	s.NodeID = 1000
 	s.tcpServer = &tcpServer{server: s}
+	// TODO set ip:port
 	s.tcpListener, err = net.Listen("tcp", "0.0.0.0:6789")
 
 	return s, err

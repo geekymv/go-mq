@@ -1,5 +1,11 @@
 package server
 
+import (
+	"encoding/binary"
+	"encoding/hex"
+	"log"
+)
+
 type Topic struct {
 	name       string
 	channelMap map[string]*Channel
@@ -7,6 +13,7 @@ type Topic struct {
 	memoryMsgChan chan *Message
 	server        *MQServer
 	startChan     chan int
+	idFactory     *ID
 }
 
 func NewTopic(topicName string, s *MQServer) *Topic {
@@ -16,6 +23,7 @@ func NewTopic(topicName string, s *MQServer) *Topic {
 		memoryMsgChan: make(chan *Message, 10000),
 		server:        s,
 		startChan:     make(chan int, 1),
+		idFactory:     NewID(s.NodeID),
 	}
 
 	go t.messagePump()
@@ -45,8 +53,17 @@ func (t *Topic) Start() {
 
 // GenerateID 生成 MessageID
 func (t *Topic) GenerateID() MessageID {
-	// TODO 使用雪花算法
-	return MessageID{}
+	var msgId MessageID
+
+	nextID, err := t.idFactory.NextID()
+	if err != nil {
+		log.Printf("[GenerateID] err:%v\n", err)
+	}
+	var buf = make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, nextID)
+	hex.Encode(msgId[:], buf)
+
+	return msgId
 }
 
 func (t *Topic) PutMessage(m *Message) error {
