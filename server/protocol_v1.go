@@ -2,8 +2,10 @@ package server
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync/atomic"
 
@@ -47,18 +49,48 @@ func (p *protocolV1) IOLoop(c protocol.Client) error {
 }
 
 /*
+PUB <topic_name>
+[ 4-byte size in bytes ][ N-byte binary data ]
+*/
+func (p *protocolV1) PUB(client *clientV1, params [][]byte) ([]byte, error) {
+	topicName := string(params[1])
+
+	// 读取消息内容长度
+	buf := make([]byte, 4)
+	_, err := io.ReadFull(client.Reader, buf)
+	if err != nil {
+		return nil, err
+	}
+	bodyLen := binary.BigEndian.Uint32(buf)
+	messageBody := make([]byte, bodyLen)
+	// 读取消息内容
+	_, err = io.ReadFull(client.Reader, messageBody)
+	if err != nil {
+		return nil, err
+	}
+
+	// 获取 topic，并发送消息
+	topic := p.server.GetTopic(topicName)
+	msg := NewMessage(topic.GenerateID(), messageBody)
+	err = topic.PutMessage(msg)
+
+	return []byte("OK"), err
+}
+
+/*
 SUB <topic_name> <channel_name>
 */
 func (p *protocolV1) SUB(client *clientV1, params [][]byte) ([]byte, error) {
 	if len(params) < 3 {
 		return nil, errors.New("params len invalid")
 	}
-	topicName := params[1]
-	channelName := params[2]
+	topicName := string(params[1])
+	channelName := string(params[2])
+	// TODO 验证 topicName channelName 合法性
 
 	// 获取 topic 和 channel
-	t := p.server.GetTopic(string(topicName))
-	channel := t.GetChannel(string(channelName))
+	t := p.server.GetTopic(topicName)
+	channel := t.GetChannel(channelName)
 
 	// 将 client 添加到 channel
 	if err := channel.AddClient(client.ID, client); err != nil {

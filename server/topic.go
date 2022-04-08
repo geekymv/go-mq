@@ -3,17 +3,23 @@ package server
 type Topic struct {
 	name       string
 	channelMap map[string]*Channel
-	server     *MQServer
-	startChan  chan int
+	// 消息 channel
+	memoryMsgChan chan *Message
+	server        *MQServer
+	startChan     chan int
 }
 
 func NewTopic(topicName string, s *MQServer) *Topic {
 	t := &Topic{
-		name:       topicName,
-		channelMap: make(map[string]*Channel),
-		server:     s,
-		startChan:  make(chan int, 1),
+		name:          topicName,
+		channelMap:    make(map[string]*Channel),
+		memoryMsgChan: make(chan *Message, 10000),
+		server:        s,
+		startChan:     make(chan int, 1),
 	}
+
+	go t.messagePump()
+
 	return t
 }
 
@@ -35,4 +41,37 @@ func (t *Topic) Start() {
 	case t.startChan <- 1:
 	default:
 	}
+}
+
+// GenerateID 生成 MessageID
+func (t *Topic) GenerateID() MessageID {
+	// TODO 使用雪花算法
+	return MessageID{}
+}
+
+func (t *Topic) PutMessage(m *Message) error {
+	select {
+	case t.memoryMsgChan <- m:
+	default:
+		// TODO write message to backend
+	}
+	return nil
+}
+
+// 将消息分发给 topic 关联的 channel
+func (t *Topic) messagePump() {
+	var msg *Message
+
+	for {
+		select {
+		case msg = <-t.memoryMsgChan:
+		default:
+		}
+
+		// 遍历 channel
+		for _, c := range t.channelMap {
+			c.PutMessage(msg)
+		}
+	}
+
 }
