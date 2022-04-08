@@ -43,6 +43,9 @@ func (s *tcpServer) Handle(conn net.Conn) {
 	log.Printf("create client id:%v\n", client.GetID())
 
 	// 读取消息内容
-	prot.IOLoop(client)
+	err = prot.IOLoop(client)
+	if err != nil {
+		log.Printf("[Handle] err:%v", err)
+	}
 
 }

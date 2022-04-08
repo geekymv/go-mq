@@ -77,15 +77,13 @@ func (t *Topic) PutMessage(m *Message) error {
 // 将消息分发给 topic 关联的 channel
 func (t *Topic) messagePump() {
 	var msg *Message
-
 	for {
 		select {
 		case msg = <-t.memoryMsgChan:
-		default:
 		}
-
 		// 遍历 channel
 		for _, c := range t.channelMap {
+			log.Printf("send msg id:%v to:%v", msg.ID, c.name)
 			c.PutMessage(msg)
 		}
 	}

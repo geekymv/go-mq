@@ -4,12 +4,24 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
+	"log"
 	"net"
 	"sync/atomic"
 
 	"github.com/geekymv/go-mq/internal/protocol"
+)
+
+const (
+	// 响应（比如，PUB、SUB 会给客户端返回一个响应）
+	frameTypeResponse int32 = 0
+	frameTypeError    int32 = 1
+	// 消息
+	frameTypeMessage int32 = 2
+)
+
+var (
+	okBytes = []byte("OK")
 )
 
 type protocolV1 struct {
@@ -30,6 +42,10 @@ func (p *protocolV1) IOLoop(c protocol.Client) error {
 	for {
 		line, err = client.Reader.ReadSlice('\n')
 		if err != nil {
+			if err == io.EOF {
+				log.Printf("[IOLoop] client reader EOF")
+			}
+			log.Printf("[IOLoop] client reader err:%v\n", err)
 			break
 		}
 
@@ -41,11 +57,34 @@ func (p *protocolV1) IOLoop(c protocol.Client) error {
 		}
 		// [][]byte
 		params := bytes.Split(line, []byte(" "))
-		fmt.Println("params", params)
 
+		var response []byte
+		response, err = p.Exec(client, params)
+		if err != nil {
+			log.Printf("[IOLoop] exec err:%v\n", err)
+			return err
+		}
+		if response != nil {
+			// send response to client
+			p.Send(client, frameTypeResponse, response)
+		}
 	}
 
+	// TODO 退出 IOLoop
+
 	return err
+}
+
+// Exec 执行指令
+func (p *protocolV1) Exec(client *clientV1, params [][]byte) ([]byte, error) {
+	cmd := params[0]
+	switch {
+	case bytes.Equal([]byte("PUB"), cmd):
+		return p.PUB(client, params)
+	case bytes.Equal([]byte("SUB"), cmd):
+		return p.SUB(client, params)
+	}
+	return nil, nil
 }
 
 /*
@@ -74,11 +113,12 @@ func (p *protocolV1) PUB(client *clientV1, params [][]byte) ([]byte, error) {
 	msg := NewMessage(topic.GenerateID(), messageBody)
 	err = topic.PutMessage(msg)
 
-	return []byte("OK"), err
+	return okBytes, err
 }
 
 /*
 SUB <topic_name> <channel_name>\n
+Subscribe to a topic/channel
 */
 func (p *protocolV1) SUB(client *clientV1, params [][]byte) ([]byte, error) {
 	if len(params) < 3 {
@@ -100,5 +140,14 @@ func (p *protocolV1) SUB(client *clientV1, params [][]byte) ([]byte, error) {
 	// 将 channel 和 client 关联
 	client.Channel = channel
 
-	return []byte("OK"), nil
+	return okBytes, nil
+}
+
+func (p *protocolV1) Send(client *clientV1, frameType int32, data []byte) error {
+	n, err := protocol.SendFramedResponse(client, frameType, data)
+	if err != nil {
+		return err
+	}
+	log.Printf("[Send] n:%v\n", n)
+	return nil
 }
